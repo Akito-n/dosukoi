@@ -1,43 +1,47 @@
 use clap::Parser;
 use std::process::Command;
 
+/// DOSUKOI: A simple Docker container stopping tool
 #[derive(Parser)]
-#[clap(version = "1.0", author = "Your Name")]
+#[command(version, about = "A simple Docker container stopping tool")]
+#[clap(trailing_var_arg = true)] // ← これを追加！
 struct Args {
+    /// Kill containers instead of stopping them
+    #[arg(short = 'k', long = "kill")]
+    kill: bool,
+
+    /// Specify a Docker Compose project to stop
+    #[arg(trailing_var_arg = true, num_args = 0..)]
     project: Option<String>,
 }
 
 fn main() {
     let args = Args::parse();
 
-    if let Some(project) = args.project {
-        println!(
-            r#"
+    // `docker stop` or `docker kill`
+    let command = if args.kill { "kill" } else { "stop" };
+
+    // ロゴの表示
+    println!(
+        r#"
 ██████╗  ██████╗ ███████╗██╗   ██╗██╗  ██╗ ██████╗  ██████╗ 
-██╔══██╗██╔═══██╗██╔════╝██║   ██║██║ ██╔╝██╔═══██╗  ╚██╔╝ 
+██╔══██╗██╔═══██╗██╔════╝██║   ██║██║ ██╔╝██╔═══██╗  ╚██╔╝  
 ██║  ██║██║   ██║███████╗██║   ██║█████╔╝ ██║   ██║   ██║  
 ██║  ██║██║   ██║╚════██║██║   ██║██╔═██╗ ██║   ██║   ██║  
 ██████╔╝╚██████╔╝███████║╚██████╔╝██║  ██╗╚███ ███╔╝██████║  
 ╚═════╝  ╚═════╝ ╚══════╝ ╚═════╝ ╚═╝  ╚═╝ ╚═══╝╚═╝   ╚═╝  
+"#
+    );
 
-Stopping Docker Compose project: {}
-"#,
-            project
-        );
-
+    if let Some(project) = args.project {
+        println!("Stopping Docker Compose project: {}", project);
         let output = Command::new("docker")
-            .args(["compose", "-p", &project, "stop"])
+            .args(["compose", "-p", &project, command])
             .output()
-            .expect("Failed to execute docker compose stop");
+            .expect("Failed to execute docker compose");
 
         if output.status.success() {
-            println!(
-                r#"
-╯°□°）╯︵ ┻━┻
-{} containers stopped!
-"#,
-                project
-            );
+            println!("(╯°□°）╯︵ ┻━┻\n{} containers {}ed!", project, command);
         } else {
             eprintln!(
                 "Error stopping {}: {}",
@@ -46,32 +50,15 @@ Stopping Docker Compose project: {}
             );
         }
     } else {
-        println!(
-            r#"
-██████╗  ██████╗ ███████╗██╗   ██╗██╗  ██╗ ██████╗  ██████╗ 
-██╔══██╗██╔═══██╗██╔════╝██║   ██║██║ ██╔╝██╔═══██╗  ╚██╔╝ 
-██║  ██║██║   ██║███████╗██║   ██║█████╔╝ ██║   ██║   ██║  
-██║  ██║██║   ██║╚════██║██║   ██║██╔═██╗ ██║   ██║   ██║  
-██████╔╝╚██████╔╝███████║╚██████╔╝██║  ██╗╚███ ███╔╝██████║  
-╚═════╝  ╚═════╝ ╚══════╝ ╚═════╝ ╚═╝  ╚═╝ ╚═══╝╚═╝   ╚═╝  
-
-Stopping all running Docker containers...
-"#
-        );
-
+        println!("Stopping all running Docker containers...");
         let output = Command::new("sh")
             .arg("-c")
-            .arg("docker stop $(docker ps -q)")
+            .arg(format!("docker {} $(docker ps -q)", command))
             .output()
-            .expect("Failed to execute docker stop");
+            .expect("Failed to execute docker command");
 
         if output.status.success() {
-            println!(
-                r#"
-╯°□°）╯︵ ┻━┻
-All containers stopped!
-"#
-            );
+            println!("(╯°□°）╯︵ ┻━┻\nAll containers {}ed!", command);
         } else {
             eprintln!(
                 "Error stopping containers: {}",
