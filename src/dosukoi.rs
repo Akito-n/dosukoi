@@ -3,7 +3,7 @@ use std::process::Command;
 pub fn get_running_containers() -> Option<Vec<String>> {
     let output = Command::new("sh")
         .arg("-c")
-        .arg("docker ps -q")
+        .arg("docker ps --format '{{.Names}}'")
         .output()
         .expect("Failed to get running containers");
 
@@ -34,7 +34,7 @@ pub fn stop_or_kill_containers(containers: &[String], kill: bool) {
         .expect("Failed to execute docker command");
 
     if output.status.success() {
-        println!("(╯°□°）╯︵ ┻━┻\nAll containers dosukoi!");
+        println!("(╯°□°）╯︵ ┻━┻\nSelected containers dosukoi!");
     } else {
         eprintln!(
             "Error stopping containers: {}",
