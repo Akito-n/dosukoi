@@ -18,6 +18,7 @@ You can:
 - Stop **a specific Docker Compose project** using an argument.
 - Use `-k` option to **kill** containers instead of stopping them.
 - Check the installed version with `--version`.
+- List running containers and select which ones to stop/kill interactively with `--l`.
 
 ---
 
@@ -62,6 +63,19 @@ or
 dosukoi -v
 ```
 
+### **📋 List running containers and select which ones to stop/kill**
+```sh
+dosukoi --l
+```
+- This will show a selectable list of running containers.
+- Use arrow keys and space to select containers.
+- Press enter to confirm the selection and stop them.
+
+To kill selected containers instead of stopping them:
+```sh
+dosukoi --l -k
+```
+
 ---
 
 ## 🧹 Uninstallation
@@ -83,5 +97,3 @@ Feel free to open **issues** or **pull requests** to improve DOSUKOI!
 ---
 
 🚀 **Stop your containers with style! DOSUKOI!**
-
-
