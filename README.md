@@ -12,13 +12,15 @@
 ```
 
 ## 🚀 About DOSUKOI
+**DOSUKOI: Docker Stopping Utility for Killing or Organizing Instances**
+
 DOSUKOI is a simple CLI tool to stop Docker containers efficiently.  
 You can:
 - Stop **all** running containers at once.
 - Stop **a specific Docker Compose project** using an argument.
 - Use `-k` option to **kill** containers instead of stopping them.
 - Check the installed version with `--version`.
-- List running containers and select which ones to stop/kill interactively with `--l`.
+- List running containers and interactively select which to stop/kill.
 
 ---
 
@@ -54,16 +56,7 @@ dosukoi -k my_project
 ```
 This will run `docker kill` instead of `docker stop`.
 
-### **📌 Check DOSUKOI version**
-```sh
-dosukoi --version
-```
-or
-```sh
-dosukoi -v
-```
-
-### **📋 List running containers and select which ones to stop/kill**
+### **📜 List running Docker containers and select which to stop/kill**
 ```sh
 dosukoi --l
 ```
@@ -71,9 +64,18 @@ dosukoi --l
 - Use arrow keys and space to select containers.
 - Press enter to confirm the selection and stop them.
 
-To kill selected containers instead of stopping them:
+### **💀 List and kill selected containers instead of stopping them**
 ```sh
 dosukoi --l -k
+```
+
+### **📌 Check DOSUKOI version**
+```sh
+dosukoi --version
+```
+or
+```sh
+dosukoi -v
 ```
 
 ---
@@ -97,3 +99,4 @@ Feel free to open **issues** or **pull requests** to improve DOSUKOI!
 ---
 
 🚀 **Stop your containers with style! DOSUKOI!**
+
