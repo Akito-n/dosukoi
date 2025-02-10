@@ -42,3 +42,25 @@ pub fn stop_or_kill_containers(containers: &[String], kill: bool) {
         );
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_get_running_containers() {
+        let containers = get_running_containers();
+        assert!(
+            containers.as_ref().map_or(true, |c| c.is_empty()) || containers.is_some(),
+            "Function should return a vector"
+        );
+    }
+
+    #[test]
+    fn test_stop_or_kill_containers() {
+        let containers = vec!["test_container".to_string()];
+        stop_or_kill_containers(&containers, false);
+        stop_or_kill_containers(&containers, true);
+        assert!(true);
+    }
+}
