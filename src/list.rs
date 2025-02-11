@@ -1,4 +1,5 @@
 use dialoguer::{theme::ColorfulTheme, MultiSelect};
+use std::io::{self, IsTerminal};
 use std::process::Command;
 use std::str;
 
@@ -25,11 +26,16 @@ pub fn select_containers(containers: &[String], kill: bool) -> Vec<String> {
 
     let action = if kill { "kill" } else { "stop" };
 
+    if !io::stdin().is_terminal() {
+        println!("Skipping interactive selection (not a TTY). All containers will be selected.");
+        return containers.to_vec();
+    }
+
     let selections = MultiSelect::with_theme(&ColorfulTheme::default())
         .with_prompt(&format!("Select containers to {} >", action))
         .items(containers)
         .interact()
-        .unwrap();
+        .expect("Failed to interact with user");
 
     selections.iter().map(|&i| containers[i].clone()).collect()
 }
