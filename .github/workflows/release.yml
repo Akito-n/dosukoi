@@ -1,0 +1,26 @@
+name: Release DOSUKOI
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build Binary
+        run: |
+          cargo build --release
+          zip -j dosukoi-mac.zip target/release/dosukoi
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: dosukoi-mac.zip
