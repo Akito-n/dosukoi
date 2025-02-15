@@ -104,11 +104,25 @@ jobs:
           end
           EOF
 
-      - name: Commit and push new formula
+      - name: Commit and create pull request
         run: |
           cd homebrew-dosukoi
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+          BRANCH_NAME="update-dosukoi-${VERSION}"
+
+          git checkout -b $BRANCH_NAME
           git add dosukoi.rb
           git commit -m "Update dosukoi to v${VERSION}"
-          git push origin main
+          git push origin $BRANCH_NAME
+
+          gh pr create \
+            --repo Akito-n/homebrew-dosukoi \
+            --base main \
+            --head $BRANCH_NAME \
+            --title "Update dosukoi to v${VERSION}" \
+            --body "This PR updates dosukoi to v${VERSION} automatically."
+
+        env:
+          GITHUB_TOKEN: ${{ secrets.HOMEBREW_GITHUB_TOKEN }}
