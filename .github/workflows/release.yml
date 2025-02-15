@@ -38,7 +38,6 @@ jobs:
 
           if [ "$CURRENT_VERSION" != "$PREV_VERSION" ]; then
             echo "version_changed=true" >> $GITHUB_OUTPUT
-            echo "version=${CURRENT_VERSION}" >> $GITHUB_OUTPUT
           else
             echo "version_changed=false" >> $GITHUB_OUTPUT
           fi
@@ -54,18 +53,23 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Build Binary
+      - name: Build Binary for macOS (Intel & Apple Silicon)
         run: |
-          cargo build --release
-          chmod +x target/release/dosukoi
-          zip -j dosukoi-mac.zip target/release/dosukoi
-
+          rustup target add aarch64-apple-darwin x86_64-apple-darwin
+          cargo build --release --target aarch64-apple-darwin
+          cargo build --release --target x86_64-apple-darwin
+          chmod +x target/aarch64-apple-darwin/release/dosukoi
+          chmod +x target/x86_64-apple-darwin/release/dosukoi
+          zip -j dosukoi-mac-arm64.zip target/aarch64-apple-darwin/release/dosukoi
+          zip -j dosukoi-mac-x86_64.zip target/x86_64-apple-darwin/release/dosukoi
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
           tag_name: v${{ needs.check_version.outputs.version }}
-          files: dosukoi-mac.zip
+          files: |
+            dosukoi-mac-arm64.zip
+            dosukoi-mac-x86_64.zip
 
   update_homebrew:
     needs: [release, check_version]
@@ -78,12 +82,15 @@ jobs:
           token: ${{ secrets.HOMEBREW_GITHUB_TOKEN }}
           path: homebrew-dosukoi
 
-      - name: Get SHA256 of new release
+      - name: Get SHA256 of new releases (ARM & x86_64)
         run: |
           VERSION=${{ needs.check_version.outputs.version }}
-          SHA256=$(curl -Ls https://github.com/Akito-n/dosukoi/releases/download/v${VERSION}/dosukoi-mac.zip | shasum -a 256 | awk '{ print $1 }')
 
-          echo "SHA256=$SHA256" >> $GITHUB_ENV
+          SHA256_ARM=$(curl -Ls https://github.com/Akito-n/dosukoi/releases/download/v${VERSION}/dosukoi-mac-arm64.zip | shasum -a 256 | awk '{ print $1 }')
+          SHA256_X86=$(curl -Ls https://github.com/Akito-n/dosukoi/releases/download/v${VERSION}/dosukoi-mac-x86_64.zip | shasum -a 256 | awk '{ print $1 }')
+
+          echo "SHA256_ARM=$SHA256_ARM" >> $GITHUB_ENV
+          echo "SHA256_X86=$SHA256_X86" >> $GITHUB_ENV
           echo "VERSION=$VERSION" >> $GITHUB_ENV
 
       - name: Update Homebrew Formula
@@ -92,8 +99,15 @@ jobs:
           class Dosukoi < Formula
             desc "A simple Docker container stopping tool"
             homepage "https://github.com/Akito-n/dosukoi"
-            url "https://github.com/Akito-n/dosukoi/releases/download/v${VERSION}/dosukoi-mac.zip"
-            sha256 "${SHA256}"
+
+            if Hardware::CPU.arm?
+              url "https://github.com/Akito-n/dosukoi/releases/download/v${VERSION}/dosukoi-mac-arm64.zip"
+              sha256 "${SHA256_ARM}"
+            else
+              url "https://github.com/Akito-n/dosukoi/releases/download/v${VERSION}/dosukoi-mac-x86_64.zip"
+              sha256 "${SHA256_X86}"
+            end
+
             version "${VERSION}"
 
             def install
