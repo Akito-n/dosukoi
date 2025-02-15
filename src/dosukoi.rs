@@ -43,6 +43,24 @@ pub fn stop_or_kill_containers(containers: &[String], kill: bool) {
     }
 }
 
+pub fn get_containers_by_project(project: &str) -> Vec<String> {
+    let output = Command::new("sh")
+        .arg("-c")
+        .arg(format!(
+            "docker ps --filter 'label=com.docker.compose.project={}' --format '{{{{.Names}}}}'",
+            project
+        ))
+        .output()
+        .expect("Failed to execute docker ps");
+
+    if output.status.success() {
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        stdout.lines().map(|s| s.to_string()).collect()
+    } else {
+        vec![]
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
