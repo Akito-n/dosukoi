@@ -8,6 +8,9 @@ pub struct Args {
 
     #[arg(short = 'l', long = "ls", action = ArgAction::SetTrue)]
     pub ls: bool,
+
+    #[arg(help = "Specify Docker Compose project name", required = false)]
+    pub project: Option<String>,
 }
 
 pub fn parse_args() -> Args {
