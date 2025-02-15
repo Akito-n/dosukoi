@@ -57,7 +57,9 @@ jobs:
       - name: Build Binary
         run: |
           cargo build --release
+          chmod +x target/release/dosukoi
           zip -j dosukoi-mac.zip target/release/dosukoi
+
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
