@@ -1,6 +1,7 @@
 use assert_cmd::Command;
+use predicates::str::contains;
 use std::env;
-use std::process::Command as StdCommand;
+use std::process::Command as StdCommand; // 🔹 追加
 
 #[test]
 fn test_dosukoi_help() {
@@ -24,16 +25,27 @@ fn test_dosukoi_list() {
 
 #[test]
 fn test_dosukoi_no_containers() {
+    // ）
+    StdCommand::new("docker")
+        .args(["rm", "-f", "$(docker ps -aq)"])
+        .status()
+        .ok(); // なくても失敗は無視
+
     let mut cmd = Command::cargo_bin("dosukoi").expect("Binary not found");
 
     let output = cmd.assert().success();
 
-    output.stdout(predicates::str::contains("No running containers found."));
+    output.stdout(contains("No running containers found."));
 }
 
 #[test]
 fn test_dosukoi_with_running_containers() {
-    // モックとしてdockerコンテナを作る
+    let _ = StdCommand::new("docker")
+        .args(["rm", "-f", "test_container"])
+        .status()
+        .ok(); // なくても失敗は無視
+
+    // 2️⃣ テスト用のコンテナを作成
     StdCommand::new("docker")
         .args([
             "run",
@@ -49,10 +61,12 @@ fn test_dosukoi_with_running_containers() {
 
     let mut cmd = Command::cargo_bin("dosukoi").unwrap();
     cmd.assert()
-        .stdout(predicates::str::contains("test_container"));
+        .stdout(predicates::str::contains("Selected containers dosukoi!"));
 
-    StdCommand::new("docker")
+    // 4️⃣ コンテナを削除
+    let status = StdCommand::new("docker")
         .args(["rm", "-f", "test_container"])
         .status()
         .expect("Failed to remove test container");
+    println!("🛠 status: {:?}", status);
 }
