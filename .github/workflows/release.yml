@@ -25,8 +25,7 @@ jobs:
         id: prev_version
         run: |
           git fetch --tags
-          PREV_VERSION=$(git tag --sort=-v:refname | head -n 1 | sed 's/v//')
-          echo "PREV_VERSION=$PREV_VERSION" >> $GITHUB_ENV
+          echo "PREV_VERSION=$(git tag --sort=-v:refname | head -n 1 | sed 's/v//')" >> $GITHUB_ENV
           echo "Previous Version: $PREV_VERSION"
 
       - name: Get Current Version
@@ -35,31 +34,17 @@ jobs:
           CURRENT_VERSION=$(grep '^version' Cargo.toml | head -n 1 | cut -d '"' -f2)
           echo "CURRENT_VERSION=${CURRENT_VERSION}" >> $GITHUB_ENV
           echo "CURRENT Version: $CURRENT_VERSION"
+          echo "version=${CURRENT_VERSION}" >> $GITHUB_OUTPUT
 
           if [ "$CURRENT_VERSION" != "$PREV_VERSION" ]; then
             echo "version_changed=true" >> $GITHUB_OUTPUT
-            echo "version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+            echo "version=${CURRENT_VERSION}" >> $GITHUB_OUTPUT
           else
             echo "version_changed=false" >> $GITHUB_OUTPUT
           fi
 
-  create_tag:
-    needs: check_version
-    if: needs.check_version.outputs.version_changed == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
-      - name: Create Git Tag
-        run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git tag "v${{ needs.check_version.outputs.version }}"
-          git push origin "v${{ needs.check_version.outputs.version }}"
-
   release:
-    needs: [check_version, create_tag]
+    needs: check_version
     if: (needs.check_version.outputs.version_changed == 'true' && github.ref == 'refs/heads/main') || startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     steps:
@@ -79,3 +64,51 @@ jobs:
         with:
           tag_name: v${{ needs.check_version.outputs.version }}
           files: dosukoi-mac.zip
+
+  update_homebrew:
+    needs: [release, check_version]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout homebrew-dosukoi repository
+        uses: actions/checkout@v4
+        with:
+          repository: Akito-n/homebrew-dosukoi
+          token: ${{ secrets.HOMEBREW_GITHUB_TOKEN }}
+          path: homebrew-dosukoi
+
+      - name: Get SHA256 of new release
+        run: |
+          VERSION=${{ needs.check_version.outputs.version }}
+          SHA256=$(curl -Ls https://github.com/Akito-n/dosukoi/releases/download/v${VERSION}/dosukoi-mac.zip | shasum -a 256 | awk '{ print $1 }')
+
+          echo "SHA256=$SHA256" >> $GITHUB_ENV
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+
+      - name: Update Homebrew Formula
+        run: |
+          cat <<EOF > homebrew-dosukoi/dosukoi.rb
+          class Dosukoi < Formula
+            desc "A simple Docker container stopping tool"
+            homepage "https://github.com/Akito-n/dosukoi"
+            url "https://github.com/Akito-n/dosukoi/releases/download/v${VERSION}/dosukoi-mac.zip"
+            sha256 "${SHA256}"
+            version "${VERSION}"
+
+            def install
+              bin.install "dosukoi"
+            end
+
+            test do
+              system "#{bin}/dosukoi", "--version"
+            end
+          end
+          EOF
+
+      - name: Commit and push new formula
+        run: |
+          cd homebrew-dosukoi
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add dosukoi.rb
+          git commit -m "Update dosukoi to v${VERSION}"
+          git push origin main
