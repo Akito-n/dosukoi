@@ -75,7 +75,7 @@ dosukoi --version
 ```
 or
 ```sh
-dosukoi -v
+dosukoi -V
 ```
 
 ---
