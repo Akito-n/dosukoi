@@ -5,7 +5,7 @@ mod logo;
 
 fn main() {
     let args = cli::parse_args();
-    logo::print_logo();
+    logo::print_random_logo();
 
     if args.ls {
         let containers = list::get_running_containers();
