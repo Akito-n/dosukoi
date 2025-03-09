@@ -98,5 +98,5 @@ Feel free to open **issues** or **pull requests** to improve DOSUKOI!
 
 ---
 
-🚀 **Stop your containers with style! DOSUKOI!!!!**
+🚀 **Stop your containers with style! DOSUKOI!**
 
