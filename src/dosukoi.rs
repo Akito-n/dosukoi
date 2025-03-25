@@ -61,57 +61,162 @@ pub fn get_containers_by_project(project: &str) -> Vec<String> {
     }
 }
 
+pub fn get_all_containers_by_project(project: &str) -> Vec<String> {
+    let output = Command::new("sh")
+        .arg("-c")
+        .arg(format!(
+            "docker ps -a --filter 'label=com.docker.compose.project={}' --format '{{{{.Names}}}}'",
+            project
+        ))
+        .output()
+        .expect("Failed to execute docker ps");
+
+    if output.status.success() {
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        stdout.lines().map(|s| s.to_string()).collect()
+    } else {
+        vec![]
+    }
+}
+
 pub fn execute_kimarite(project: Option<&str>) {
     if let Some(proj) = project {
         println!("Executing kimarite on project: {}", proj);
 
-        let cmd = format!(
-            "docker compose -p {} down --rmi all --volumes --remove-orphans || docker-compose -p {} down --rmi all --volumes --remove-orphans",
-            proj, proj
-        );
-
-        let output = Command::new("sh")
+        let containers = get_all_containers_by_project(proj);
+        if containers.is_empty() {
+            println!(
+                "No containers found for project: {}. Will try to remove other resources.",
+                proj
+            );
+        } else {
+            println!(
+                "Found {} containers to remove for project: {}",
+                containers.len(),
+                proj
+            );
+        }
+        let mut success = false;
+        let compose_v2_output = Command::new("sh")
             .arg("-c")
-            .arg(&cmd)
-            .output()
-            .expect("Failed to execute kimarite command");
+            .arg(format!(
+                "docker compose -p {} down --rmi all --volumes --remove-orphans",
+                proj
+            ))
+            .output();
 
-        if output.status.success() {
+        if let Ok(output) = compose_v2_output {
+            if output.status.success() {
+                println!("Successfully removed project resources using Docker Compose V2.");
+                success = true;
+            } else {
+                let compose_v1_output = Command::new("sh")
+                    .arg("-c")
+                    .arg(format!(
+                        "docker-compose -p {} down --rmi all --volumes --remove-orphans",
+                        proj
+                    ))
+                    .output();
+
+                if let Ok(output) = compose_v1_output {
+                    if output.status.success() {
+                        println!("Successfully removed project resources using Docker Compose V1.");
+                        success = true;
+                    }
+                }
+            }
+        }
+
+        if !success && !containers.is_empty() {
+            println!("Docker Compose commands failed. Removing containers directly...");
+            let container_list = containers.join(" ");
+
+            let rm_output = Command::new("sh")
+                .arg("-c")
+                .arg(format!("docker rm -f {}", container_list))
+                .output();
+
+            if let Ok(output) = rm_output {
+                if output.status.success() {
+                    println!("Successfully removed containers directly.");
+                    let network_cmd = format!(
+                        "docker network ls --filter 'label=com.docker.compose.project={}' --format '{{{{.Name}}}}' | xargs -r docker network rm",
+                        proj
+                    );
+
+                    let _ = Command::new("sh").arg("-c").arg(&network_cmd).output();
+                    let volume_cmd = format!(
+                        "docker volume ls --filter 'label=com.docker.compose.project={}' --format '{{{{.Name}}}}' | xargs -r docker volume rm",
+                        proj
+                    );
+
+                    let _ = Command::new("sh").arg("-c").arg(&volume_cmd).output();
+
+                    success = true;
+                }
+            }
+        }
+
+        if success {
             println!(
                 "(╯°□°）╯︵ ┻━┻\nKimarite successful! Project resources have been eliminated."
             );
         } else {
-            let stderr = String::from_utf8_lossy(&output.stderr);
-            if stderr.contains("no such service") || stderr.contains("not found") {
-                eprintln!(
-                    "Error: Docker Compose project '{}' not found or no docker-compose.yml exists.",
-                    proj
-                );
-            } else {
-                eprintln!("Error during kimarite: {}", stderr);
-            }
+            eprintln!(
+                "Error: Could not fully execute kimarite on project '{}'.",
+                proj
+            );
+            eprintln!("Try running the following manually:");
+            eprintln!(
+                "  docker compose -p {} down --rmi all --volumes --remove-orphans",
+                proj
+            );
+            eprintln!("  OR");
+            eprintln!(
+                "  docker-compose -p {} down --rmi all --volumes --remove-orphans",
+                proj
+            );
         }
     } else {
         println!("Executing kimarite on all Docker resources...");
-        let cmd = "docker system prune -af --volumes";
-
-        let output = Command::new("sh")
+        let stop_output = Command::new("sh")
             .arg("-c")
-            .arg(cmd)
-            .output()
-            .expect("Failed to execute kimarite command");
+            .arg("docker stop $(docker ps -q) 2>/dev/null || true")
+            .output();
 
-        if output.status.success() {
-            println!("(╯°□°）╯︵ ┻━┻\nKimarite successful! All resources have been eliminated.");
+        if let Ok(_) = stop_output {
+            println!("Stopped all running containers.");
+        }
+        let rm_output = Command::new("sh")
+            .arg("-c")
+            .arg("docker rm -f $(docker ps -a -q) 2>/dev/null || true")
+            .output();
+
+        if let Ok(_) = rm_output {
+            println!("Removed all containers.");
+        }
+        let prune_output = Command::new("sh")
+            .arg("-c")
+            .arg("docker system prune -af --volumes")
+            .output();
+
+        if let Ok(output) = prune_output {
+            if output.status.success() {
+                println!(
+                    "(╯°□°）╯︵ ┻━┻\nKimarite successful! All resources have been eliminated."
+                );
+            } else {
+                eprintln!(
+                    "Error during system prune: {}",
+                    String::from_utf8_lossy(&output.stderr)
+                );
+                eprintln!("Try running 'docker system prune -af --volumes' manually.");
+            }
         } else {
-            eprintln!(
-                "Error during kimarite: {}",
-                String::from_utf8_lossy(&output.stderr)
-            );
+            eprintln!("Failed to execute docker system prune command.");
         }
     }
 }
-
 #[cfg(test)]
 mod tests {
     use super::*;
