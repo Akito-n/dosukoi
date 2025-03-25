@@ -156,3 +156,57 @@ fn test_dosukoi_with_project() {
 
     wait_for_container_removal(container_name);
 }
+
+#[test]
+fn test_dosukoi_kimarite_with_project() {
+    let container_name = "test_kimarite_container";
+    let project_name = "test_kimarite_project";
+
+    StdCommand::new("docker")
+        .args(["rm", "-f", container_name])
+        .status()
+        .ok();
+    wait_for_container_removal(container_name);
+
+    let status = StdCommand::new("docker")
+        .args([
+            "run",
+            "-d",
+            "--name",
+            container_name,
+            "--label",
+            &format!("com.docker.compose.project={}", project_name),
+            "alpine",
+            "sleep",
+            "60",
+        ])
+        .status()
+        .expect("Failed to start test container");
+
+    assert!(status.success(), "Failed to start test container");
+
+    let ps_output = StdCommand::new("sh")
+        .arg("-c")
+        .arg(&format!(
+            "docker ps --filter 'label=com.docker.compose.project={}' --format '{{{{.Names}}}}'",
+            project_name
+        ))
+        .output()
+        .expect("Failed to execute docker ps");
+
+    let ps_stdout = String::from_utf8_lossy(&ps_output.stdout);
+    assert!(
+        ps_stdout.contains(container_name),
+        "Project container not found in `docker ps` output"
+    );
+
+    let mut cmd = Command::cargo_bin("dosukoi").unwrap();
+    cmd.args(["--kimarite", project_name]).assert().success(); // ここでは単に成功するかどうかだけをチェック
+
+    // クリーンアップ（念のため）
+    StdCommand::new("docker")
+        .args(["rm", "-f", container_name])
+        .status()
+        .ok();
+    wait_for_container_removal(container_name);
+}

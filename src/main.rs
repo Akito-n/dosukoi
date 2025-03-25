@@ -7,7 +7,9 @@ fn main() {
     let args = cli::parse_args();
     logo::print_random_logo();
 
-    if args.ls {
+    if args.kimarite {
+        dosukoi::execute_kimarite(args.project.as_deref());
+    } else if args.ls {
         let containers = list::get_running_containers();
         let selected = list::select_containers(&containers, args.kill);
         dosukoi::stop_or_kill_containers(&selected, args.kill);

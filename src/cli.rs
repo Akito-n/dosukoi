@@ -3,6 +3,9 @@ use clap::{ArgAction, Parser};
 #[derive(Parser)]
 #[command(version, about = "A simple Docker container stopping tool")]
 pub struct Args {
+    #[arg(long = "kimarite", short = 'K', action = ArgAction::SetTrue)]
+    pub kimarite: bool,
+
     #[arg(short = 'k', long = "kill")]
     pub kill: bool,
 
