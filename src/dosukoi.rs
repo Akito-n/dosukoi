@@ -65,37 +65,33 @@ pub fn execute_kimarite(project: Option<&str>) {
     if let Some(proj) = project {
         println!("Executing kimarite on project: {}", proj);
 
-        let compose_cmd = format!(
+        let cmd = format!(
             "docker compose -p {} down --rmi all --volumes --remove-orphans || docker-compose -p {} down --rmi all --volumes --remove-orphans",
             proj, proj
         );
 
-        let compose_output = Command::new("sh").arg("-c").arg(&compose_cmd).output();
+        let output = Command::new("sh")
+            .arg("-c")
+            .arg(&cmd)
+            .output()
+            .expect("Failed to execute kimarite command");
 
-        if let Ok(output) = compose_output {
-            if output.status.success() {
-                println!(
-                    "(╯°□°）╯︵ ┻━┻\nKimarite successful! Project resources have been eliminated."
+        if output.status.success() {
+            println!(
+                "(╯°□°）╯︵ ┻━┻\nKimarite successful! Project resources have been eliminated."
+            );
+        } else {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            if stderr.contains("no such service") || stderr.contains("not found") {
+                eprintln!(
+                    "Error: Docker Compose project '{}' not found or no docker-compose.yml exists.",
+                    proj
                 );
-                return;
+            } else {
+                eprintln!("Error during kimarite: {}", stderr);
             }
         }
-
-        println!("Falling back to individual container removal...");
-        let containers = get_containers_by_project(proj);
-        if !containers.is_empty() {
-            stop_or_kill_containers(&containers, true);
-            let _ = Command::new("sh")
-                .arg("-c")
-                .arg(format!(
-                    "docker volume prune -f --filter label=com.docker.compose.project={}",
-                    proj
-                ))
-                .output();
-        }
     } else {
-        // プロジェクト指定なしの場合は全てのDockerリソースを対象にする。これあぶないし必要ないかもな~
-        // kimariteオプション自体がミスって打つことないしいいか
         println!("Executing kimarite on all Docker resources...");
         let cmd = "docker system prune -af --volumes";
 
@@ -115,6 +111,7 @@ pub fn execute_kimarite(project: Option<&str>) {
         }
     }
 }
+
 #[cfg(test)]
 mod tests {
     use super::*;
